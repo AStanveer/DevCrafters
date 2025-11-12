@@ -10,11 +10,23 @@ import {
     View,
     Modal,
     ActivityIndicator,
+    AppState,
+    Alert,
 } from "react-native";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from "react-native-safe-area-context";
 import BottomNavigation from "../../components/BottomNavigation";
 import { supabase } from "../../lib/supabase";
+import * as Notifications from 'expo-notifications';
+
+// Configure notifications
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 // Toggle Component
 const ToggleSwitch = ({ isOn, onToggle }) => (
@@ -25,6 +37,7 @@ const ToggleSwitch = ({ isOn, onToggle }) => (
     <View style={[styles.toggleCircle, isOn && styles.toggleCircleOn]} />
   </Pressable>
 );
+
 
 // Reusable Modal Component
 const ReminderModal = ({
@@ -52,6 +65,9 @@ const ReminderModal = ({
       const time = new Date();
       time.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       setSelectedTimes([time]);
+      setSelectedMedicine(initialData.medicines?.medicine_name || '');
+      setSelectedMedicineId(initialData.medicine_id || '');
+      setSelectedFrequency(initialData.frequency || '');
     }
   }, [initialData, mode]);
 
@@ -105,6 +121,10 @@ const ReminderModal = ({
   const handleClose = () => {
     resetForm();
     onClose();
+  };
+
+  const handleSubmit = () => {
+    onSubmit({ selectedMedicineId, selectedFrequency, selectedTimes });
   };
 
   return (
@@ -218,6 +238,7 @@ const ReminderModal = ({
                     mode="time"
                     display="spinner"
                     onChange={onTimeChange(index)}
+                    textColor="#000"
                   />
                 )}
               </View>
@@ -226,7 +247,7 @@ const ReminderModal = ({
 
           <Pressable
             style={[styles.createButton, (!selectedMedicine || !selectedFrequency) && styles.createButtonDisabled]}
-            onPress={() => onSubmit({ selectedMedicineId, selectedFrequency, selectedTimes })}
+            onPress={handleSubmit}
             disabled={!selectedMedicine || !selectedFrequency}
           >
             <Text style={styles.createButtonText}>
@@ -262,8 +283,123 @@ export default function Reminders() {
 
   const frequencies = ['Once Daily', 'Twice Daily', 'Thrice Daily'];
 
+  // Store notification identifiers for cancellation
+  const [notificationIds, setNotificationIds] = useState({});
+
+  // FIXED: Proper notification scheduling
+  const scheduleNotification = async (reminder, time, notificationId = null) => {
+    if (!pushNotifications) return;
+
+    const [hours, minutes] = time.split(':');
+    const medicineName = reminder.medicines?.medicine_name || reminder.medicine_name || 'your medication';
+
+    try {
+      // Cancel existing notification if editing
+      if (notificationId) {
+        await Notifications.cancelScheduledNotificationAsync(notificationId);
+      }
+
+      const identifier = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Medication Reminder",
+          body: `Time to take ${medicineName}`,
+          sound: soundAlerts ? 'default' : null,
+        },
+        trigger: {
+          hour: parseInt(hours),
+          minute: parseInt(minutes),
+          repeats: false,
+        },
+      });
+
+      // Store notification ID for future cancellation
+      setNotificationIds(prev => ({
+        ...prev,
+        [reminder.reminder_id]: identifier
+      }));
+
+      console.log('Notification scheduled for:', time, 'ID:', identifier);
+    } catch (error) {
+      console.error('Error scheduling notification:', error);
+    }
+  };
+
+  const cancelNotification = async (reminderId) => {
+    try {
+      const notificationId = notificationIds[reminderId];
+      if (notificationId) {
+        await Notifications.cancelScheduledNotificationAsync(notificationId);
+        setNotificationIds(prev => {
+          const newIds = { ...prev };
+          delete newIds[reminderId];
+          return newIds;
+        });
+        console.log('Notification cancelled for reminder:', reminderId);
+      }
+    } catch (error) {
+      console.error('Error cancelling notification:', error);
+    }
+  };
+
+  // FIXED: Handle snooze properly
+  const handleSnooze = async (reminderId) => {
+    if (!snoozeOption) return;
+
+    const reminder = reminders.find(r => r.reminder_id === reminderId);
+    if (!reminder) return;
+
+    const medicineName = reminder.medicines?.medicine_name || reminder.medicine_name || 'your medication';
+    const snoozeTime = new Date(Date.now() + 15 * 60 * 1000);
+
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Medication Reminder - Snoozed",
+          body: `Time to take ${medicineName}`,
+          sound: soundAlerts ? 'default' : null,
+        },
+        trigger: {
+          date: snoozeTime,
+          repeats: false,
+        },
+      });
+      console.log('Snoozed reminder for 15 minutes');
+    } catch (error) {
+      console.error('Error snoozing notification:', error);
+    }
+  };
+
+  // AppState handler
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'active') {
+        fetchReminders();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  // Request notification permissions
+  useEffect(() => {
+    const requestPermissions = async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Notification Permission', 'Please enable notifications for medication reminders!');
+      }
+    };
+
+    requestPermissions();
+  }, []);
+
   // Data fetching
-  useEffect(() => { fetchReminders(); }, []);
+  useEffect(() => {
+    fetchReminders();
+  }, []);
 
   const fetchMedicines = async () => {
     setLoadingMedicines(true);
@@ -274,27 +410,55 @@ export default function Reminders() {
         .order('medicine_name');
       if (!error) setMedicines(data || []);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching medicines:', error);
     } finally {
       setLoadingMedicines(false);
     }
   };
 
+
   const fetchReminders = async () => {
     setLoadingReminders(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setLoadingReminders(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('reminders')
-        .select('reminder_id, scheduled_time, created_at, frequency, medicine_id, medicines (medicine_name)')
+        .select(`
+          reminder_id,
+          scheduled_time,
+          created_at,
+          frequency,
+          medicine_id,
+          medicines (medicine_name)
+        `)
         .eq('user_id', user.id)
         .order('scheduled_time');
 
-      if (!error) setReminders(data || []);
+      if (error) {
+        console.error('Error fetching reminders:', error);
+        setReminders([]);
+        return;
+      }
+
+      const validReminders = (data || []).filter(reminder =>
+        reminder !== null && reminder.medicines !== null
+      );
+
+      setReminders(validReminders);
+
+      // Schedule notifications for all valid reminders
+      validReminders.forEach(reminder => {
+        scheduleNotification(reminder, reminder.scheduled_time);
+      });
+
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error in fetchReminders:', error);
+      setReminders([]);
     } finally {
       setLoadingReminders(false);
     }
@@ -314,7 +478,11 @@ export default function Reminders() {
   const closeModal = () => setModalState({ visible: false, mode: 'create', data: null });
 
   // Reminder operations
-  const formatTimeForDB = (date) => date.toTimeString().split(' ')[0];
+  const formatTimeForDB = (date) => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
 
   const handleCreateReminder = async ({ selectedMedicineId, selectedFrequency, selectedTimes }) => {
     try {
@@ -328,13 +496,31 @@ export default function Reminders() {
         frequency: selectedFrequency
       }));
 
-      const { error } = await supabase.from('reminders').insert(remindersToCreate);
-      if (!error) {
-        await fetchReminders();
-        closeModal();
+      const { data, error } = await supabase.from('reminders').insert(remindersToCreate).select(`
+        reminder_id,
+        scheduled_time,
+        frequency,
+        medicine_id,
+        medicines (medicine_name)
+      `);
+
+      if (error) {
+        Alert.alert('Error', 'Failed to create reminder');
+        return;
       }
+
+      // Schedule notifications for new reminders
+      data?.forEach((reminder, index) => {
+        scheduleNotification(reminder, formatTimeForDB(selectedTimes[index]));
+      });
+
+      await fetchReminders();
+      closeModal();
+      Alert.alert('Success', 'Reminder created successfully');
+
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error creating reminder:', error);
+      Alert.alert('Error', 'Failed to create reminder');
     }
   };
 
@@ -342,6 +528,9 @@ export default function Reminders() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Cancel existing notification
+      await cancelNotification(modalState.data.reminder_id);
 
       const { error } = await supabase
         .from('reminders')
@@ -352,43 +541,160 @@ export default function Reminders() {
         })
         .eq('reminder_id', modalState.data.reminder_id);
 
-      if (!error) {
-        await fetchReminders();
-        closeModal();
+      if (error) {
+        Alert.alert('Error', 'Failed to update reminder');
+        return;
       }
+
+      // Schedule new notification
+      const updatedReminder = {
+        reminder_id: modalState.data.reminder_id,
+        medicines: medicines.find(m => m.medicine_id === selectedMedicineId),
+        scheduled_time: formatTimeForDB(selectedTimes[0])
+      };
+      await scheduleNotification(updatedReminder, formatTimeForDB(selectedTimes[0]));
+
+      await fetchReminders();
+      closeModal();
+      Alert.alert('Success', 'Reminder updated successfully');
+
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error updating reminder:', error);
+      Alert.alert('Error', 'Failed to update reminder');
     }
   };
 
+  // FIXED: Proper delete with notification cancellation
   const handleDeleteReminder = async (reminderId) => {
-    try {
-      const { error } = await supabase.from('reminders').delete().eq('reminder_id', reminderId);
-      if (!error) await fetchReminders();
-    } catch (error) {
-      console.error('Error:', error);
+    Alert.alert(
+      'Delete Reminder',
+      'Are you sure you want to delete this reminder?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Cancel notification first
+              await cancelNotification(reminderId);
+
+              // Then delete from database
+              const { error } = await supabase
+                .from('reminders')
+                .delete()
+                .eq('reminder_id', reminderId);
+
+              if (error) {
+                Alert.alert('Error', 'Failed to delete reminder');
+                return;
+              }
+
+              await fetchReminders();
+              Alert.alert('Success', 'Reminder deleted successfully');
+
+            } catch (error) {
+              console.error('Error deleting reminder:', error);
+              Alert.alert('Error', 'Failed to delete reminder');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // FIXED: Correct next dose time calculation
+  const getNextDoseText = (scheduledTime) => {
+    if (!scheduledTime) return 'No time set';
+
+    const now = new Date();
+    const [hours, minutes] = scheduledTime.split(':').map(Number);
+
+    const reminderTimeToday = new Date();
+    reminderTimeToday.setHours(hours, minutes, 0, 0);
+
+    const reminderTimeTomorrow = new Date();
+    reminderTimeTomorrow.setDate(reminderTimeTomorrow.getDate() + 1);
+    reminderTimeTomorrow.setHours(hours, minutes, 0, 0);
+
+    if (reminderTimeToday > now) {
+      return `Today at ${reminderTimeToday.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })}`;
+    } else {
+      return `Tomorrow at ${reminderTimeTomorrow.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })}`;
     }
   };
 
-  // Helper functions
-  const formatTime = (date) => date.toLocaleTimeString('en-US', {
-    hour: 'numeric', minute: '2-digit', hour12: true
-  });
 
-  const getNextDoseText = (scheduledTime) => {
-    const now = new Date();
-    const [hours, minutes] = scheduledTime.split(':');
-    const reminderTime = new Date();
-    reminderTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-    if (reminderTime > now) {
-      return `Today at ${formatTime(reminderTime)}`;
-    } else {
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-      return `Tomorrow at ${formatTime(tomorrow)}`;
+  const renderReminders = () => {
+    if (loadingReminders) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color="#0ea5e9" />
+          <Text style={styles.loadingText}>Loading reminders...</Text>
+        </View>
+      );
     }
+
+    const validReminders = reminders.filter(reminder =>
+      reminder && reminder.medicines !== null && reminder.medicines !== undefined
+    );
+
+    if (validReminders.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateText}>No reminders yet</Text>
+          <Text style={styles.emptyStateSubtext}>Add your first reminder to get started</Text>
+        </View>
+      );
+    }
+
+    return validReminders.map((reminder) => {
+      const medicineName = reminder.medicines?.medicine_name || 'Unknown Medicine';
+
+      return (
+        <View key={reminder.reminder_id} style={styles.reminderCard}>
+          <View style={styles.reminderHeader}>
+            <Text style={styles.medName}>{medicineName}</Text>
+            <ToggleSwitch
+              isOn={reminderToggles[reminder.reminder_id] !== false}
+              onToggle={() => {
+                const newState = !reminderToggles[reminder.reminder_id];
+                setReminderToggles(prev => ({
+                  ...prev,
+                  [reminder.reminder_id]: newState
+                }));
+
+                // Call snooze when toggled off
+                if (!newState) {
+                  handleSnooze(reminder.reminder_id);
+                }
+              }}
+            />
+          </View>
+          <Text style={styles.nextDose}>
+            Next: {getNextDoseText(reminder.scheduled_time)}
+          </Text>
+          <View style={styles.reminderActions}>
+            <Pressable style={styles.actionButton} onPress={() => openEditModal(reminder)}>
+              <Image source={require("../../assets/edit.png")} style={styles.smallIcon} />
+              <Text style={styles.actionText}>Edit</Text>
+            </Pressable>
+            <Pressable style={styles.actionButton} onPress={() => handleDeleteReminder(reminder.reminder_id)}>
+              <Image source={require("../../assets/deleteIcon.png")} style={styles.smallIcon} />
+              <Text style={styles.actionText}>Delete</Text>
+            </Pressable>
+          </View>
+        </View>
+      );
+    });
   };
 
   return (
@@ -455,43 +761,8 @@ export default function Reminders() {
                 </Pressable>
               </View>
 
-              {loadingReminders ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#0ea5e9" />
-                  <Text style={styles.loadingText}>Loading reminders...</Text>
-                </View>
-              ) : reminders.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No reminders yet</Text>
-                  <Text style={styles.emptyStateSubtext}>Add your first reminder to get started</Text>
-                </View>
-              ) : (
-                reminders.map((reminder) => (
-                  <View key={reminder.reminder_id} style={styles.reminderCard}>
-                    <View style={styles.reminderHeader}>
-                      <Text style={styles.medName}>{reminder.medicines.medicine_name}</Text>
-                      <ToggleSwitch
-                        isOn={reminderToggles[reminder.reminder_id] !== false}
-                        onToggle={() => setReminderToggles(prev => ({
-                          ...prev,
-                          [reminder.reminder_id]: !prev[reminder.reminder_id]
-                        }))}
-                      />
-                    </View>
-                    <Text style={styles.nextDose}>Next: {getNextDoseText(reminder.scheduled_time)}</Text>
-                    <View style={styles.reminderActions}>
-                      <Pressable style={styles.actionButton} onPress={() => openEditModal(reminder)}>
-                        <Image source={require("../../assets/edit.png")} style={styles.smallIcon} />
-                        <Text style={styles.actionText}>Edit</Text>
-                      </Pressable>
-                      <Pressable style={styles.actionButton} onPress={() => handleDeleteReminder(reminder.reminder_id)}>
-                        <Image source={require("../../assets/deleteIcon.png")} style={styles.smallIcon} />
-                        <Text style={styles.actionText}>Delete</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                ))
-              )}
+              {renderReminders()}
+
             </View>
 
           </ScrollView>
