@@ -100,6 +100,7 @@ const OnlineRefillOrder2 = () => {
   const readyTime = getParam("readyTime");
   const distanceParam = getParam("distance");
   const currentStock = getParam("currentStock");
+  const pharmacyStock = getParam("pharmacyStock");
   const passedUnitPrice = parseFloat(getParam("unitPrice")) || 0;
   
   // Fix: Parse distance safely and check for NaN
@@ -168,6 +169,15 @@ const OnlineRefillOrder2 = () => {
       Alert.alert("Error", "Please enter a valid quantity");
       return;
     }
+
+    // Check if requested quantity exceeds pharmacy stock
+    if (pharmacyStock && parseInt(pharmacyStock) >= 0 && quantityNum > parseInt(pharmacyStock)) {
+      Alert.alert(
+        "Insufficient Stock",
+        `The pharmacy only has ${pharmacyStock} units of this medicine available. Please reduce your quantity or choose a different pharmacy.`
+      );
+      return;
+    }
     
     if (unitPrice === null || unitPrice <= 0) {
       Alert.alert(
@@ -198,6 +208,7 @@ const OnlineRefillOrder2 = () => {
               if (readyTime) paramsToPass.readyTime = readyTime;
               if (distance) paramsToPass.distance = distance;
               if (pharmacyId) paramsToPass.pharmacyId = pharmacyId;
+              if (pharmacyStock) paramsToPass.pharmacyStock = pharmacyStock;
               
               router.push({
                 pathname: "/(tabs)/onlineRefillOrder3",
@@ -233,6 +244,7 @@ const OnlineRefillOrder2 = () => {
     if (readyTime) paramsToPass.readyTime = readyTime;
     if (distance) paramsToPass.distance = distance;
     if (pharmacyId) paramsToPass.pharmacyId = pharmacyId;
+    if (pharmacyStock) paramsToPass.pharmacyStock = pharmacyStock;
     
     console.log("📤 Passing to OnlineRefillOrder3:", paramsToPass);
     
@@ -424,6 +436,25 @@ const OnlineRefillOrder2 = () => {
                 <Text style={styles.summaryValue}>{currentStock} units</Text>
               </View>
             ) : null}
+
+            {/* Pharmacy Stock - Only show if available */}
+            {pharmacyStock && parseInt(pharmacyStock) >= 0 ? (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Pharmacy Stock:</Text>
+                <View style={styles.summaryValueColumn}>
+                  <Text style={styles.summaryValue}>{pharmacyStock} units at pharmacy</Text>
+                  {parseInt(pharmacyStock) === 0 && (
+                    <Text style={styles.stockWarningText}>⚠️ Out of stock at pharmacy</Text>
+                  )}
+                  {parseInt(pharmacyStock) > 0 && parseInt(pharmacyStock) < 10 && (
+                    <Text style={styles.stockWarningText}>⚠️ Low stock at pharmacy</Text>
+                  )}
+                  {parseInt(pharmacyStock) >= 10 && (
+                    <Text style={styles.stockAvailableText}>✅ Available at pharmacy</Text>
+                  )}
+                </View>
+              </View>
+            ) : null}
             
             <View style={styles.summaryDivider} />
             
@@ -460,23 +491,29 @@ const OnlineRefillOrder2 = () => {
         </View>
 
         {/* Continue Button */}
-        <Pressable 
+        <Pressable
           style={[
             styles.continueButton,
-            (quantityNum === 0 || unitPrice <= 0) && styles.continueButtonDisabled
-          ]} 
+            (quantityNum === 0 || unitPrice === null || isLoadingPrice ||
+             (pharmacyStock && parseInt(pharmacyStock) >= 0 && quantityNum > parseInt(pharmacyStock)))
+              && styles.continueButtonDisabled
+          ]}
           onPress={handleContinue}
-          disabled={quantityNum === 0 || unitPrice <= 0}
+          disabled={quantityNum === 0 || unitPrice === null || isLoadingPrice ||
+                   (pharmacyStock !== undefined && pharmacyStock !== "" && parseInt(pharmacyStock) >= 0 && quantityNum > parseInt(pharmacyStock))}
         >
           <Text style={styles.continueButtonText}>
-            {isLoadingPrice 
-              ? "Loading Price..." 
-              : unitPrice === null 
-                ? "Price Not Available" 
+            {isLoadingPrice
+              ? "Loading Price..."
+              : unitPrice === null
+                ? "Price Not Available"
+                : pharmacyStock && parseInt(pharmacyStock) >= 0 && quantityNum > parseInt(pharmacyStock)
+                ? `Insufficient Stock - Only ${pharmacyStock} Available`
                 : `Continue to Payment - RM ${totalPrice.toFixed(2)}`
             }
           </Text>
-          {!isLoadingPrice && unitPrice !== null && (
+          {!isLoadingPrice && unitPrice !== null &&
+           !(pharmacyStock && parseInt(pharmacyStock) >= 0 && quantityNum > parseInt(pharmacyStock)) && (
             <Image source={forwardIcon} style={styles.arrowIcon} resizeMode="contain" />
           )}
         </Pressable>
@@ -791,6 +828,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#f97316",
     marginTop: 4,
+  },
+  stockWarningText: {
+    fontSize: 12,
+    color: "#f97316",
+    marginTop: 4,
+    fontWeight: "500",
+  },
+  stockAvailableText: {
+    fontSize: 12,
+    color: "#10b981",
+    marginTop: 4,
+    fontWeight: "500",
   },
   summaryDivider: {
     height: 1,

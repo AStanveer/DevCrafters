@@ -53,6 +53,8 @@ const OnlineRefillOrder = () => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [medicineInfo, setMedicineInfo] = React.useState<MedicineInfo | null>(null);
+  const [checkingStocks, setCheckingStocks] = React.useState<{[key: number]: boolean}>({});
+  const [pharmacyStocks, setPharmacyStocks] = React.useState<{[key: number]: number | null}>({});
   
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371;
@@ -71,6 +73,44 @@ const OnlineRefillOrder = () => {
     if (distance < 3) return '2 hours';
     if (distance < 5) return '3 hours';
     return '4 hours';
+  };
+
+  // Mock function to check pharmacy stock for the medicine
+  const checkPharmacyStock = async (pharmacyId: number): Promise<number | null> => {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 1000));
+
+    // Mock stock levels - in reality this would check the pharmacy's inventory system
+    // change this to refer to table instead of random values
+    const mockStocks = {
+      1: Math.floor(Math.random() * 100) + 10, // 10-110 units (good stock)
+      2: Math.random() > 0.6 ? Math.floor(Math.random() * 20) : 0, // 60% chance of low stock (0-20 units)
+      3: Math.random() > 0.8 ? null : Math.floor(Math.random() * 50), // 20% chance of out of stock
+      4: Math.floor(Math.random() * 30) + 5, // 5-35 units (moderate stock)
+      5: Math.random() > 0.7 ? null : Math.floor(Math.random() * 200), // 30% chance of unavailable
+    };
+
+    // Default mock for pharmacies beyond the first 5
+    const defaultStock = Math.random() > 0.4 ? Math.floor(Math.random() * 80) : null;
+
+    return mockStocks[pharmacyId as keyof typeof mockStocks] ?? defaultStock;
+  };
+
+  // Function to check stock for all pharmacies
+  const checkAllPharmacyStocks = async (pharmaciesList: Pharmacy[]) => {
+    for (const pharmacy of pharmaciesList) {
+      setCheckingStocks(prev => ({ ...prev, [pharmacy.pharmacy_id]: true }));
+
+      try {
+        const stock = await checkPharmacyStock(pharmacy.pharmacy_id);
+        setPharmacyStocks(prev => ({ ...prev, [pharmacy.pharmacy_id]: stock }));
+      } catch (error) {
+        console.error(`Failed to check stock for pharmacy ${pharmacy.pharmacy_id}:`, error);
+        setPharmacyStocks(prev => ({ ...prev, [pharmacy.pharmacy_id]: null }));
+      }
+
+      setCheckingStocks(prev => ({ ...prev, [pharmacy.pharmacy_id]: false }));
+    }
   };
   
   // Function to fetch price from medicine_prices table
@@ -224,8 +264,11 @@ const OnlineRefillOrder = () => {
           
           pharmaciesWithDetails.sort((a, b) => (a.distance || 0) - (b.distance || 0));
           setPharmacies(pharmaciesWithDetails);
+
+          // Start checking stock for all pharmacies
+          checkAllPharmacyStocks(pharmaciesWithDetails);
         }
-        
+
       } catch (err: any) {
         console.error('Error:', err);
         setError(err.message);
@@ -233,7 +276,7 @@ const OnlineRefillOrder = () => {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, [medicineId]);
   
@@ -256,12 +299,22 @@ const OnlineRefillOrder = () => {
         pharmacyName: selectedPharmacy.pharmacy_name,
         pharmacyAddress: selectedPharmacy.pharmacy_address,
         readyTime: selectedPharmacy.ready_time || "Within 4 hours",
-        distance: selectedPharmacy.distance?.toFixed(1) || "0"
+        distance: selectedPharmacy.distance?.toFixed(1) || "0",
+        pharmacyStock: pharmacyStocks[selectedPharmacy.pharmacy_id]?.toString() || "0"
       }
     });
   };
   
   const handlePharmacySelect = (pharmacy: Pharmacy) => {
+    // Check if pharmacy is out of stock
+    const stockLevel = pharmacyStocks[pharmacy.pharmacy_id];
+    if (stockLevel === 0) {
+      Alert.alert(
+        "Pharmacy Out of Stock",
+        `${pharmacy.pharmacy_name} is currently out of stock for this medicine. Please choose another pharmacy.`
+      );
+      return;
+    }
     setSelectedPharmacy(pharmacy);
   };
   
@@ -356,26 +409,61 @@ const OnlineRefillOrder = () => {
             <View style={styles.pharmacyCards}>
               {pharmacies.map((pharmacy) => {
                 const isSelected = selectedPharmacy?.pharmacy_id === pharmacy.pharmacy_id;
-                
+                const isCheckingStock = checkingStocks[pharmacy.pharmacy_id];
+                const stockLevel = pharmacyStocks[pharmacy.pharmacy_id];
+
+                let stockStatus: 'available' | 'low' | 'out' | 'checking' | 'unavailable' = 'unavailable';
+                let stockText = '';
+
+                if (isCheckingStock) {
+                  stockStatus = 'checking';
+                  stockText = 'Checking stock...';
+                } else if (stockLevel === null) {
+                  stockStatus = 'unavailable';
+                  stockText = 'Stock unavailable';
+                } else if (stockLevel === 0) {
+                  stockStatus = 'out';
+                  stockText = 'Out of stock';
+                } else if (stockLevel < 5) {
+                  stockStatus = 'low';
+                  stockText = `${stockLevel} units left (Low stock)`;
+                } else {
+                  stockStatus = 'available';
+                  stockText = `${stockLevel} units available`;
+                }
+
                 return (
-                  <Pressable 
+                  <Pressable
                     key={pharmacy.pharmacy_id}
                     style={[styles.pharmacyCard, isSelected && styles.pharmacyCardSelected]}
                     onPress={() => handlePharmacySelect(pharmacy)}
                   >
-                    <Text style={styles.pharmacyName}>{pharmacy.pharmacy_name}</Text>
+                    <View style={styles.pharmacyHeader}>
+                      <Text style={styles.pharmacyName}>{pharmacy.pharmacy_name}</Text>
+                      <View style={[styles.stockBadge, styles[`stockBadge${stockStatus}`]]}>
+                        <Text style={styles.stockBadgeText}>
+                          {stockStatus === 'checking' && <Text>🔄</Text>}
+                          {stockStatus === 'available' && <Text>✅</Text>}
+                          {stockStatus === 'low' && <Text>⚠️</Text>}
+                          {stockStatus === 'out' && <Text>❌</Text>}
+                          {stockStatus === 'unavailable' && <Text>❓</Text>}
+                          {' '}{stockText}
+                        </Text>
+                      </View>
+                    </View>
+
                     <View style={styles.pharmacyInfo}>
                       <Image source={locationIcon} style={styles.icon} />
                       <Text style={styles.pharmacyAddress}>{pharmacy.pharmacy_address}</Text>
                     </View>
                     <Text style={styles.readyTime}>{formatReadyTime(pharmacy)}</Text>
-                    
+
                     {medicineInfo && medicineInfo.unit_price > 0 && (
                       <Text style={styles.priceText}>
                         RM {medicineInfo.unit_price.toFixed(2)} per unit
                       </Text>
                     )}
-                    
+
                     {isSelected && (
                       <Text style={styles.selectedIndicator}>✓ Selected</Text>
                     )}
@@ -477,12 +565,55 @@ const styles = StyleSheet.create({
     borderWidth: 1, 
     borderColor: "#e2e8f0" 
   },
-  pharmacyCardSelected: { 
-    borderColor: "#0ea5e9", 
-    backgroundColor: "#f0f9ff", 
-    borderWidth: 2 
+  pharmacyCardSelected: {
+    borderColor: "#0ea5e9",
+    backgroundColor: "#f0f9ff",
+    borderWidth: 2
   },
-  pharmacyName: { fontSize: 16, fontWeight: "600", color: "#0f172a", marginBottom: 8 },
+  pharmacyHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  pharmacyName: { fontSize: 16, fontWeight: "600", color: "#0f172a", flex: 1, marginRight: 8 },
+  stockBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    minWidth: 120,
+    alignItems: "center",
+  },
+  stockBadgeavailable: {
+    backgroundColor: "#f0fdf4",
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+  stockBadgelow: {
+    backgroundColor: "#fef3c7",
+    borderWidth: 1,
+    borderColor: "#fbbf24",
+  },
+  stockBadgeout: {
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  stockBadgechecking: {
+    backgroundColor: "#f0f9ff",
+    borderWidth: 1,
+    borderColor: "#0ea5e9",
+  },
+  stockBadgeunavailable: {
+    backgroundColor: "#f3f4f6",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+  },
+  stockBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+  },
   pharmacyInfo: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
   icon: { width: 16, height: 16, marginRight: 8 },
   pharmacyAddress: { fontSize: 14, color: "#475569", flex: 1 },
