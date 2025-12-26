@@ -16,7 +16,7 @@ const options =
       auth: {
         storage: AsyncStorage,
         autoRefreshToken: true,
-        persistSession: false,
+        persistSession: true,
         detectSessionInUrl: false,
       },
     }

@@ -21,19 +21,46 @@ export default function CreateNewPassword() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
-    verifyRecoverySession();
-  }, []);
+    let mounted = true;
 
-  const verifyRecoverySession = async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error || !session) {
-      Alert.alert(
-        "Error",
-        "Unable to verify your reset request. Please request a new reset link.",
-        [{ text: "OK", onPress: () => router.push("/forgot-password") }]
-      );
-    }
-  };
+    const setupSession = async () => {
+      // 1. Check if we already have a session
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      if (initialSession && mounted) {
+        return;
+      }
+
+      // 2. If not, wait for the session to be set by _layout.tsx
+      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+        if (session && mounted) {
+          // Session received
+        }
+      });
+
+      // 3. Set a timeout to show error if session never arrives (e.g. 5 seconds)
+      setTimeout(async () => {
+        if (!mounted) return;
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!currentSession) {
+          Alert.alert(
+            "Error",
+            "Unable to verify your reset request. Please request a new reset link.",
+            [{ text: "OK", onPress: () => router.push("/forgot-password") }]
+          );
+        }
+      }, 5000);
+
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
+    };
+
+    setupSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleResetPassword = async () => {
     if (!password || !confirmPassword) {

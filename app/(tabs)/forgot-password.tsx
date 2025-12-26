@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import * as Linking from "expo-linking";
 import { supabase } from "../../lib/supabase";
 
 export default function ForgotPassword() {
@@ -25,8 +26,9 @@ export default function ForgotPassword() {
     }
 
     setLoading(true);
+    const redirectUrl = Linking.createURL('/create-new-password');
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'exp://192.168.0.10:8081/--/forgot-password',
+      redirectTo: redirectUrl,
     });
 
     if (error) {
