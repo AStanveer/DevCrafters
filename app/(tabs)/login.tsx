@@ -39,30 +39,23 @@ export default function Login() {
     setTimeout(() => setToast({ visible: false, message: "", type: "" }), 3000);
   };
 
-
-
   const checkAdminLogin = async (email, password) => {
     try {
-      // TEMPORARY: Use plain text while we fix the database
-      // TODO: Hash passwords in database and update this
       const { data: admin, error } = await supabase
         .from('pharmacy_admins')
         .select('*')
         .eq('email', email)
-        .eq('is_active', true)
-        .eq('approval_status', 'approved')
         .single();
 
       if (error || !admin) return null;
 
-      // TEMPORARY: Plain text comparison (FIX THIS SOON!)
+      // Simple password check
       if (admin.password_hash === password) {
         return admin;
       }
 
       return null;
     } catch (error) {
-      console.error('Admin login error:', error);
       return null;
     }
   };
@@ -77,52 +70,28 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // 1. Check if it's an admin
-      const { data: admin, error: adminError } = await supabase
-        .from('pharmacy_admins')
-        .select('id, email, pharmacy_id, full_name, password_hash')
-        .eq('email', formData.email)
-        .single();
+      //  pharmacy admin login
+      const admin = await checkAdminLogin(formData.email, formData.password);
 
-      if (admin && !adminError) {
-        // Check password
-        let passwordValid = false;
-
-        // If it looks like a hash (64 chars = SHA256)
-        if (admin.password_hash.length === 64) {
-          const hashedPassword = await Crypto.digestStringAsync(
-            Crypto.CryptoDigestAlgorithm.SHA256,
-            formData.password
-          );
-          passwordValid = admin.password_hash === hashedPassword;
-        } else {
-          // Plain text comparison
-          passwordValid = admin.password_hash === formData.password;
-        }
-
-        if (passwordValid) {
-          // ✅ ADMIN LOGIN SUCCESS
-          showToast("Welcome to Admin Dashboard", "success");
-
-          setTimeout(() => {
-            router.push({
-              pathname: "/admin-dashboard",
-              params: {
-                adminId: admin.id,
-                pharmacyId: admin.pharmacy_id,
-                email: admin.email,
-                fullName: admin.full_name || 'Admin',
-                approvalStatus: 'approved' // Hardcode as approved since we're not checking
-              }
-            });
-          }, 1500);
-
-          setLoading(false);
-          return;
-        }
+      if (admin) {
+        // Go to admin dashboard with admin data as params
+        showToast("Welcome to Admin Dashboard", "success");
+        setTimeout(() => {
+          router.push({
+            pathname: "/admin-dashboard",
+            params: {
+              adminId: admin.id,
+              pharmacyId: admin.pharmacy_id,
+              email: admin.email,
+              fullName: admin.full_name,
+              approvalStatus: admin.approval_status
+            }
+          });
+        }, 1500);
+        return;
       }
 
-      // 2. If not admin or password wrong, try regular user
+      // regular user login
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
@@ -182,6 +151,7 @@ export default function Login() {
       setTimeout(() => router.push("/home"), 1500);
     }
   };
+
 
   return (
     <SafeAreaView style={styles.container}>
