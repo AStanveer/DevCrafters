@@ -14,6 +14,7 @@ import {
   Platform,
   Alert,
 } from "react-native";
+import BottomNavigation from "../../components/BottomNavigation";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
@@ -334,109 +335,8 @@ const ScanPackage = () => {
         </ScrollView>
 
         {/* Bottom Navigation */}
-        <View style={[
-          styles.bottomNav,
-          isLargeScreen && styles.bottomNavLarge
-        ]}>
-          <Pressable 
-            style={styles.navItem} 
-            onPress={() => router.push("/home")}
-          >
-            <Image
-              source={require("../../assets/homeIcon.png")}
-              style={[
-                styles.navIcon,
-                isLargeScreen && { width: 24, height: 24 }
-              ]}
-              resizeMode="contain"
-            />
-            <Text style={[
-              styles.navText,
-              isLargeScreen && { fontSize: 12 }
-            ]}>
-              Home
-            </Text>
-          </Pressable>
-
-          <Pressable 
-            style={styles.navItem} 
-            onPress={() => router.push("/meds")}
-          >
-            <Image
-              source={require("../../assets/pillIcon.png")}
-              style={[
-                styles.navIcon,
-                isLargeScreen && { width: 24, height: 24 }
-              ]}
-              resizeMode="contain"
-            />
-            <Text style={[
-              styles.navText,
-              isLargeScreen && { fontSize: 12 }
-            ]}>
-              Meds
-            </Text>
-          </Pressable>
-
-          <View style={[
-            styles.navItemActive,
-            isLargeScreen && styles.navItemActiveLarge
-          ]}>
-            <Image
-              source={require("../../assets/scanIcon.png")}
-              style={[
-                styles.navIconActive,
-                isLargeScreen && { width: 28, height: 28 }
-              ]}
-              resizeMode="contain"
-            />
-            <Text style={[
-              styles.navTextActive,
-              isLargeScreen && { fontSize: 12 }
-            ]}>
-              Scan
-            </Text>
-          </View>
-
-          <Pressable
-            style={styles.navItem}
-            onPress={() => router.push("/analytics")}
-          >
-            <Image
-              source={require("../../assets/chartIcon.png")}
-              style={[
-                styles.navIcon,
-                isLargeScreen && { width: 24, height: 24 }
-              ]}
-              resizeMode="contain"
-            />
-            <Text style={[
-              styles.navText,
-              isLargeScreen && { fontSize: 12 }
-            ]}>
-              Analytics
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.navItem}
-            onPress={() => router.push("/profile")}
-          >
-            <Image
-              source={require("../../assets/profileIcon.png")}
-              style={[
-                styles.navIcon,
-                isLargeScreen && { width: 24, height: 24 }
-              ]}
-              resizeMode="contain"
-            />
-            <Text style={[
-              styles.navText,
-              isLargeScreen && { fontSize: 12 }
-            ]}>
-              Profile
-            </Text>
-          </Pressable>
+        <View style={styles.bottomNavWrapper}>
+          <BottomNavigation />
         </View>
       </View>
     </SafeAreaView>
@@ -444,6 +344,20 @@ const ScanPackage = () => {
 };
 
 const styles = StyleSheet.create({
+  bottomNavWrapper: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "white",
+    borderTopWidth: 0.5,
+    borderTopColor: "#e2e8f0",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: -2 },
+    shadowRadius: 4,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: "#fff",

@@ -33,12 +33,6 @@ export class SupabaseChatbot {
       response: "📋 Your medication is running low? Please go to the **Refill Feature** and select your pharmacy for a refill request. You should request refills 3-5 days before running out completely. Would you like me to guide you through the refill process?",
       category: 'medication_refill'
     },
-    {
-      keywords: ['refill', 'renew', 'restock', 'more pills', 'more tablets', 'get more', 'order more'],
-      contextWords: ['need', 'want', 'get', 'order', 'request', 'medication', 'medicine'],
-      response: "🔄 Need a refill? Use our **Refill Feature** to request medication refills from your preferred pharmacy. Simply select the medication and pharmacy, and we'll handle the rest! You can also set up automatic refills for convenience.",
-      category: 'medication_refill'
-    },
     
     // MEDICINE INFORMATION QUERIES
     {
@@ -123,7 +117,35 @@ export class SupabaseChatbot {
       contextWords: ['prescription', 'refill', 'order', 'medication'],
       response: "📦 Check your prescription status in the **Prescription Tracker Feature**. You'll see if it's being processed, ready for pickup, or if there are any issues. You'll also receive notifications when it's ready.",
       category: 'prescription_status'
-    }
+    },
+
+    {
+  keywords: ['reminder', 'how to make reminder'],
+  response: "⏰ **How to make reminder for medicine:**\n\nFirst, click on the reminder tab. Choose the time and the amount of the taking medicine per day. When it reaches the time, it will pop out as a notification for you to take your respective medicine. After taking the medicine, do not forget to click on 'I already took the medicine' confirmation button.",
+  category: 'reminder_exact'
+},
+{
+  keywords: ['identify medicine', 'how to identify medicine', 'eyes is not good', 'eyes are not good'],
+  response: "👁️ **How to identify medicine when vision is poor:**\n\nFirst, click on the scan icon from the navigation tab. Then, you can choose to take photo of the medicine package or just upload the photo of the package of the medicine. This is the feature to detect and identify the medicine name. Next, it will show the name and all the details of the medicine. After that, you can choose to scan again or just add the medicine to your medicine list by clicking 'Add to My Med' button.",
+  category: 'identification_exact'
+},
+{
+  keywords: ['analytics', 'view my analytics', 'how to view my analytics'],
+  response: "📊 **How to view your analytics:**\n\nFirstly, click on the analytics button on the navigation tab. Next, you can track base on weekly, monthly, quarter year or even yearly record by switching the tracking adherence at the top of the page. Besides, you can choose to see on your adherence, intake and also trends by also switching the tab at the middle of the page.",
+  category: 'analytics_exact'
+},
+{
+  keywords: ['view medicine list', 'how to view my medicine list', 'medicine list'],
+  response: "📋 **How to view medicine list:**\n\nFirstly, click on the meds icon at the navigation tab. You can see all the medicine at the all tab. You can also add the medicine by clicking the add medication button. If there is medicine expired today, it will pop up at the Due Today tab. If there is medicine at the Low Stock tab, you need to pay attention to it because it is about to finish. You can choose to click on the medicine and click Request Refill.\n\nAt the request refill, you will be direct to select the pharmacy, quantity and continue to the payment. After the payment is successfully made, you will need to wait for the pharmacy to notify you for the pickup.",
+  category: 'medlist_exact'
+},
+{
+  keywords: ['refill medicine', 'how to refill my medicine'],
+  response: "🔄 **How to refill medicine:**\n\nFirst, click on the meds icon at the navigation button. Next, click on the medicine you desire to refill. After that, click on request refill.\n\nAt the request refill, you will be direct to select the pharmacy, quantity and continue to the payment. After the payment is successfully made, you will need to wait for the pharmacy to notify you for the pickup.",
+  category: 'refill_exact'
+}
+
+    
   ];
 
   constructor() {

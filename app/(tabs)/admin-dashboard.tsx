@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Pressable,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -235,18 +236,51 @@ export default function AdminDashboard() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <Text style={styles.title}>Pharmacist Dashboard</Text>
-            <Text style={styles.subtitle}>Manage customer orders</Text>
+      <SafeAreaView style={styles.container}>
+        <ScrollView style={styles.scrollView}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerContent}>
+              <Text style={styles.title}>Pharmacist Dashboard</Text>
+              <Text style={styles.subtitle}>Manage customer orders</Text>
+            </View>
+
+            {/* Logout Button - moved inside header */}
+            <Pressable
+              style={styles.logoutButton}
+              onPress={async () => {
+                try {
+                  await supabase.auth.signOut();
+                  router.push("/login");
+                } catch (error) {
+                  console.error("Logout error:", error);
+                  // Optionally show error message to user
+                }
+              }}
+            >
+              <Image
+                source={require("../../assets/logout.png")}
+                style={styles.logoutIcon}
+              />
+            </Pressable>
           </View>
-          <Image
-            source={require("../../assets/orders.png")}
-            style={styles.avatar}
-          />
+
+        {/* Tabs */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity style={[styles.tab, styles.tabActive]}>
+            <Text style={styles.tabTextActive}>Orders</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, styles.tabInactive]}
+            onPress={() =>
+              router.push({
+                pathname: "/admin-inventory",
+                params: { pharmacyId },
+              })
+            }
+          >
+            <Text style={styles.tabTextInactive}>Inventory</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Stats Cards */}
@@ -458,6 +492,47 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
   },
+  logoutIcon:{
+    width: 30,
+    height: 30,
+  },
+
+    // Tabs
+    tabContainer: {
+      flexDirection: "row",
+      backgroundColor: "#f1f5f9",
+      borderRadius: 20,
+      padding: 4,
+      marginBottom: 24,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+      alignItems: "center",
+    },
+    tabInactive: {
+      backgroundColor: "transparent",
+    },
+    tabActive: {
+      backgroundColor: "#fff",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    tabTextInactive: {
+      fontSize: 14,
+      color: "#64748b",
+      fontWeight: "500",
+    },
+    tabTextActive: {
+      fontSize: 14,
+      color: "#0f172a",
+      fontWeight: "500",
+    },
 
   // Stats Cards
   statsContainer: {

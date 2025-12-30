@@ -5,6 +5,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="be9a4546-b6cd-403a-ac85-40f30f333ed2" name="Changes" comment="Payment integration">
+      <change afterPath="$PROJECT_DIR$/app/(tabs)/admin-add-medicine.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/(tabs)/admin-edit-medicine.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/(tabs)/admin-inventory.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/assets/logout.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.expo/types/router.d.ts" beforeDir="false" afterPath="$PROJECT_DIR$/.expo/types/router.d.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/(tabs)/admin-dashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/admin-dashboard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/(tabs)/login.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/login.tsx" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/app/(tabs)/receipt.tsx" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/app/utils/generateReceiptPDF.ts" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/app/utils/logMissedIntakes.ts" afterDir="false" />
@@ -44,7 +53,7 @@
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
     &quot;url&quot;: &quot;https://github.com/AStanveer/DevCrafters.git&quot;,
-    &quot;accountId&quot;: &quot;19ebee0b-6b22-4b20-84e5-91f730e053c2&quot;
+    &quot;accountId&quot;: &quot;4e1360d5-ded0-4632-b4ea-4aaf1730c85b&quot;
   }
 }</component>
   <component name="ProblemsViewState">
@@ -68,6 +77,13 @@
     "RunOnceActivity.readMode.enableVisualFormatting": "true",
     "cf.first.check.clang-format": "false",
     "cidr.known.project.marker": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/anjumsiddiqua/StudioProjects/sprint5/assets"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/assets" />
     "git-widget-placeholder": "chuah---sprint5"
   }
 }]]></component>

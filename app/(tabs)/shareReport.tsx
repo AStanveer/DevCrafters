@@ -11,7 +11,7 @@ import {
     Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
 import { Feather } from "@expo/vector-icons";
@@ -99,9 +99,9 @@ export default function ShareReportScreen() {
                 });
 
                 await FileSystem.writeAsStringAsync(uri, base64, {
-                    encoding: FileSystem.EncodingType.Base64,
+                  encoding: "base64",
                 });
-                
+
                 // Verify the file was written
                 const fileInfo = await FileSystem.getInfoAsync(uri);
                 if (!fileInfo.exists) {

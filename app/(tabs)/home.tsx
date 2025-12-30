@@ -288,4 +288,3 @@ const styles = StyleSheet.create({
   quickSubtitle: { fontSize: 12, color: "#64748b", textAlign: "center" },
   bottomNavWrapper: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "white", borderTopWidth: 0.5, borderTopColor: "#e2e8f0", elevation: 8, shadowColor: "#000", shadowOpacity: 0.05, shadowOffset: { width: 0, height: -2 }, shadowRadius: 4 },
 });
-
